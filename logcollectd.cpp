@@ -4,6 +4,7 @@ Database file is rotated each hour
 Database files is compressed after X days (default 7 days) by xz
 
 (c) Denys Fedoryshchenko, 2023
+SPDX-License-Identifier: LGPL-2.1-only
 */
 #include <queue>
 #include <tuple>

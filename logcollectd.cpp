@@ -79,6 +79,10 @@ int open_listener(int port) {
     return sock;
 }
 
+/*
+    * Check if dbfile needs to be updated
+    * If yes, close current db and open new one
+*/
 void dbtimecheck(int *current_hour, char *dbfile) {
     time_t now = time(NULL);
     if (*current_hour != localtime(&now)->tm_hour) {
@@ -101,6 +105,10 @@ void dbtimecheck(int *current_hour, char *dbfile) {
     }
 }
 
+/*
+    * Insert message into db
+    * Return 0 on success, 1 on error
+*/
 int insert_db(char *remote, char *msg, int ts) {
     const char *sql = "INSERT INTO log (timestamp, host, message) VALUES (?, ?, ?);";
     char *err_msg = 0;
@@ -125,6 +133,9 @@ int insert_db(char *remote, char *msg, int ts) {
 
 }
 
+/*
+    * Compress old db files
+*/
 void cleanup() {
     // Iterate over files, convert filename to timestamp, xz compress older than 1 day
     DIR *dir;
@@ -157,7 +168,9 @@ void cleanup() {
 void *db_thread(void *arg) {
     printf("db_thread() started\n");
     char dbfile[1024] = {0};
-    int current_hour = 0;
+    int current_hour = -1;
+    // initial dbfile
+    dbtimecheck(&current_hour, dbfile);
     while (1) {
         // check if dbfile needs to be updated
         dbtimecheck(&current_hour, dbfile);
@@ -221,12 +234,23 @@ int main(int argc, char *argv[]) {
     }
 
     if (config.port == 0) {
-        config.port = 5140; // non-privileged port
+        // Check uid
+        if (getuid() == 0) {
+            config.port = 514; // privileged port
+            if (config.verbose)
+                printf("Running as root, using privileged port %d\n", config.port);
+        } else {
+            config.port = 5140; // non-privileged port
+            if (config.verbose)
+                printf("Running as non-root, using non-privileged port %d\n", config.port);
+        }
     }
 
     // default compress_age is 7 days in seconds
     if (config.compress_age == 0) {
         config.compress_age = 7 * 86400;
+        if (config.verbose)
+            printf("compress_age: %d\n", config.compress_age);
     }
     // open listener
     fd.sock = open_listener(config.port);
@@ -271,6 +295,7 @@ int main(int argc, char *argv[]) {
                 }
             } else {
                 // no new messages
+                usleep(1000);
             }
         }        
     }

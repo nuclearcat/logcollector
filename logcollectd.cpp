@@ -36,7 +36,7 @@ struct {
     sqlite3 *db;
 } fd;
 
-#define VERSION "0.1"
+#define VERSION "0.1a"
 
 // queue will contain timestamp, host, message
 std::queue <std::tuple<int, std::string, std::string>> queue;
